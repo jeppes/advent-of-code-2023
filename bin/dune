@@ -1,0 +1,6 @@
+(executable
+ (public_name aoc2023)
+ (name main)
+ (libraries aoc2023 str core)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.ord ppx_deriving.eq)))

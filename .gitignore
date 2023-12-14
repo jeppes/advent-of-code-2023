@@ -1,0 +1,4 @@
+.ocamlformat
+_build
+*.txt
+aoc2023.opam

@@ -1,0 +1,4 @@
+(library
+ (inline_tests)
+ (libraries core)
+ (name aoc2023))
