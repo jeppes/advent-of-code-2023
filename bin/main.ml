@@ -435,13 +435,10 @@ module Day_5 = struct
     in
     let results =
       List.map seed_ranges ~f:(fun seed_range ->
-        let thing =
-          List.fold_left maps ~init:[ seed_range ] ~f:pass_ranges_through_map
-          |> List.map ~f:(fun range -> range.low)
-          |> List.min_elt ~compare:Int.compare
-          |> Option.value_exn
-        in
-        thing)
+        List.fold_left maps ~init:[ seed_range ] ~f:pass_ranges_through_map
+        |> List.map ~f:(fun range -> range.low)
+        |> List.min_elt ~compare:Int.compare
+        |> Option.value_exn)
     in
     List.min_elt ~compare:Int.compare results |> Option.value_exn
   ;;
