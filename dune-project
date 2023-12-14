@@ -5,22 +5,15 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github jeppes/advent-of-code-2023))
 
-(authors "Author Name")
+(authors "jeppes")
 
-(maintainers "Maintainer Name")
+(maintainers "jeppes")
 
 (license LICENSE)
 
-(documentation https://url/to/documentation)
-
 (package
  (name aoc2023)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
- (tags
-  (topics "to describe" your project)))
-
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
+ (description "Solution to Advent of Code 2023")
+ (depends ocaml dune))
