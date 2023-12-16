@@ -21,7 +21,7 @@ let of_char char =
   | _ -> failwith ("invalid node " ^ String.of_char char)
 ;;
 
-let graph_to_string (graph : node array array) =
+let graph_to_string graph =
   Array.map graph ~f:(fun row ->
     row
     |> Array.to_list
