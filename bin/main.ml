@@ -957,12 +957,7 @@ module Day_11 = struct
 end
 
 module Day_12 = struct
-  let matches_template_4
-    (template : char array)
-    (group_index, group)
-    previous_index
-    ~check_end
-    =
+  let matches_template template (group_index, group) previous_index ~check_end =
     let is_legal_spring char = Char.( = ) char '?' || Char.( = ) char '#' in
     let is_legal_space char = Char.( = ) char '?' || Char.( = ) char '.' in
     if group_index >= Array.length template then failwith "invalid group index";
@@ -1013,7 +1008,7 @@ module Day_12 = struct
         let result =
           List.range first_possible_index (last_possible_index + 1)
           |> List.map ~f:(fun index ->
-            if matches_template_4
+            if matches_template
                  template_array
                  (index, group)
                  starting_index
