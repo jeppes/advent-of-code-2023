@@ -124,5 +124,11 @@ let () =
   print_endline ("Part 2 " ^ Util.to_result ~result:day_14_part_2 ~expected:97241);
   print_endline "";
   (* / *)
+  print_endline "Day 15";
+  let day_15 = Util.read_file "inputs/day15.txt" in
+  let day_15_part_1 = Util.measure_ns Day_15.solve_1 day_15 in
+  print_endline ("Part 1 " ^ Util.to_result ~result:day_15_part_1 ~expected:509784);
+  let day_15_part_2 = Util.measure_ns Day_15.solve_2 day_15 in
+  print_endline ("Part 2 " ^ Util.to_result ~result:day_15_part_2 ~expected:230197);
   print_endline ""
 ;;
