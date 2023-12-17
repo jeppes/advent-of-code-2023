@@ -1,4 +1,7 @@
-type point = int * int [@@deriving show]
+type point = int * int [@@deriving eq]
+
+let show_point (x, y) = Printf.sprintf "(%d,%d)" x y
+let read_point s = Scanf.sscanf s "(%d,%d)" (fun x y -> x, y)
 
 let neighbors_of_point point =
   let row = fst point in
