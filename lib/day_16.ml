@@ -6,15 +6,7 @@ type direction =
   | Down
   | Left
   | Right
-[@@deriving eq]
-
-let show_direction direction =
-  match direction with
-  | Up -> "Up"
-  | Down -> "Down"
-  | Left -> "Left"
-  | Right -> "Right"
-;;
+[@@deriving eq, show]
 
 let all_directions = [ Up; Right; Down; Left ]
 
@@ -22,13 +14,30 @@ let direction_index direction =
   List.findi_exn all_directions ~f:(fun _ d -> equal_direction direction d) |> fst
 ;;
 
-type cache = Core.String.Set.t array array array
+type visited_set = String.Set.t
 
-let make_cache board : cache =
+let to_cache_key (point, direction) = show_point point ^ "-" ^ show_direction direction
+
+let make_visited_set ?(elements = []) _ =
+  String.Set.of_list (List.map elements ~f:to_cache_key)
+;;
+
+let visited_set_to_points set =
+  let point_from_cache_key key = String.split key ~on:'-' |> List.hd_exn |> read_point in
+  set
+  |> Set.to_list
+  |> List.map ~f:point_from_cache_key
+  |> List.map ~f:show_point
+  |> String.Set.of_list
+;;
+
+type cache = visited_set array array array
+
+let make_cache board =
   let row_count = Array.length board in
   let col_count = Array.length board.(0) in
   let make_directions_array _ =
-    Array.create ~len:(List.length all_directions) String.Set.empty
+    Array.create ~len:(List.length all_directions) (make_visited_set ())
   in
   let make_row_array _ =
     Array.create ~len:col_count 1 |> Array.map ~f:make_directions_array
@@ -37,19 +46,8 @@ let make_cache board : cache =
   cache
 ;;
 
-let to_cache_key point direction = show_point point ^ "-" ^ show_direction direction
-let point_from_cache_key key = String.split key ~on:'-' |> List.hd_exn |> read_point
-
 let cache_put cache point direction value =
   cache.(fst point).(snd point).(direction_index direction) <- value
-;;
-
-let to_point_set set =
-  set
-  |> Set.to_list
-  |> List.map ~f:point_from_cache_key
-  |> List.map ~f:show_point
-  |> String.Set.of_list
 ;;
 
 let get_point_count_in_cache cache =
@@ -67,11 +65,11 @@ let get_point_count_in_cache cache =
   !sum
 ;;
 
-let cache_mem (cache : cache) point direction =
+let cache_mem cache point direction =
   not (Set.is_empty cache.(fst point).(snd point).(direction_index direction))
 ;;
 
-let cache_get_exn (cache : cache) point direction =
+let cache_get_exn cache point direction =
   cache.(fst point).(snd point).(direction_index direction)
 ;;
 
@@ -135,20 +133,20 @@ let turn_90_degrees_up direction =
 
 let point_add (row1, col1) (row2, col2) = row1 + row2, col1 + col2
 
-let solve board point direction (cache : cache) =
+let solve board point direction cache =
   let obstacle_at (row, col) = board.(row).(col) in
   let rec visit point direction visited cache =
-    let cache_key = to_cache_key point direction in
+    let cache_key = to_cache_key (point, direction) in
     let x, y = point in
     let out_of_bounds =
       x < 0 || x >= Array.length board || y < 0 || y >= Array.length board.(0)
     in
     if out_of_bounds
-    then String.Set.empty
+    then make_visited_set ()
     else if cache_mem cache point direction
     then cache_get_exn cache point direction
     else if Set.mem visited cache_key
-    then String.Set.singleton cache_key
+    then make_visited_set [ cache_key ]
     else (
       let new_visited = Set.add visited cache_key in
       let obstacle = obstacle_at point in
@@ -189,8 +187,8 @@ let solve board point direction (cache : cache) =
       cache_put cache point direction result_set;
       result_set)
   in
-  visit point direction String.Set.empty cache
-  |> to_point_set
+  visit point direction (make_visited_set ()) cache
+  |> visited_set_to_points
   |> Set.count ~f:(fun _ -> true)
 ;;
 
@@ -230,8 +228,6 @@ let solve_2 input =
     |> List.concat
   in
   let cache = make_cache board in
-  List.map outer_rim ~f:(fun (point, direction) ->
-    let count = solve board point direction cache in
-    count)
+  List.map outer_rim ~f:(fun (point, direction) -> solve board point direction cache)
   |> Util.list_max
 ;;
