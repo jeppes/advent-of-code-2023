@@ -29,3 +29,5 @@
 [Day 14](lib/day_14.ml) ⭐⭐
 
 [Day 15](lib/day_15.ml) ⭐⭐
+
+[Day 16](lib/day_16.ml) ⭐⭐
