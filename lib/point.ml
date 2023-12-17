@@ -1,4 +1,7 @@
-type point = int * int [@@deriving eq]
+open Sexplib.Std
+open Ppx_compare_lib.Builtin
+
+type point = int * int [@@deriving compare, eq, sexp]
 
 let show_point (x, y) = Printf.sprintf "(%d,%d)" x y
 let read_point s = Scanf.sscanf s "(%d,%d)" (fun x y -> x, y)

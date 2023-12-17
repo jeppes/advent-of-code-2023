@@ -3,4 +3,9 @@
  (libraries core str)
  (name aoc2023)
  (preprocess
-  (pps ppx_deriving.show ppx_deriving.ord ppx_deriving.eq)))
+  (pps
+   ppx_deriving.show
+   ppx_deriving.ord
+   ppx_deriving.eq
+   ppx_compare
+   ppx_sexp_conv)))

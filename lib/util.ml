@@ -51,6 +51,10 @@ let cut_off prefix string =
   else failwith "Expected string \"" ^ string ^ "\" to start with \"" ^ prefix ^ "\""
 ;;
 
+let list_min list =
+  List.min_elt ~compare:(fun a b -> compare a b) list |> Option.value_exn
+;;
+
 let list_max list =
   List.max_elt ~compare:(fun a b -> compare a b) list |> Option.value_exn
 ;;
