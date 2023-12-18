@@ -85,3 +85,9 @@ let list_to_pairs list =
 ;;
 
 let manhattan_distance (x_1, y_1) (x_2, y_2) = abs (x_1 - x_2) + abs (y_1 - y_2)
+
+let hex_to_int str =
+  str
+  |> String.to_list
+  |> List.fold_left ~init:0 ~f:(fun acc x -> (acc * 16) + Char.get_hex_digit_exn x)
+;;
