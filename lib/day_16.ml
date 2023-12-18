@@ -6,7 +6,7 @@ type direction =
   | Down
   | Left
   | Right
-[@@deriving eq, show]
+[@@deriving eq, compare, show, sexp]
 
 let all_directions = [ Up; Right; Down; Left ]
 
@@ -14,24 +14,17 @@ let direction_index direction =
   List.findi_exn all_directions ~f:(fun _ d -> equal_direction direction d) |> fst
 ;;
 
-type visited_set = String.Set.t
+module Entry = struct
+  type t = point * direction [@@deriving eq, compare, sexp]
 
-let to_cache_key (point, direction) = show_point point ^ "-" ^ show_direction direction
+  let compare = compare
+end
 
-let make_visited_set ?(elements = []) _ =
-  String.Set.of_list (List.map elements ~f:to_cache_key)
-;;
+module Visited_set = Set.Make (Entry)
 
-let visited_set_to_points set =
-  let point_from_cache_key key = String.split key ~on:'-' |> List.hd_exn |> read_point in
-  set
-  |> Set.to_list
-  |> List.map ~f:point_from_cache_key
-  |> List.map ~f:show_point
-  |> String.Set.of_list
-;;
+let make_visited_set ?(elements = []) _ = Visited_set.of_list elements
 
-type cache = visited_set array array array
+type cache = Visited_set.t array array array
 
 let make_cache board =
   let row_count = Array.length board in
@@ -135,8 +128,7 @@ let point_add (row1, col1) (row2, col2) = row1 + row2, col1 + col2
 
 let solve board point direction cache =
   let obstacle_at (row, col) = board.(row).(col) in
-  let rec visit point direction visited cache =
-    let cache_key = to_cache_key (point, direction) in
+  let rec visit point direction (visited : Visited_set.t) cache =
     let x, y = point in
     let out_of_bounds =
       x < 0 || x >= Array.length board || y < 0 || y >= Array.length board.(0)
@@ -145,10 +137,10 @@ let solve board point direction cache =
     then make_visited_set ()
     else if cache_mem cache point direction
     then cache_get_exn cache point direction
-    else if Set.mem visited cache_key
-    then make_visited_set [ cache_key ]
+    else if Set.mem visited (point, direction)
+    then make_visited_set [ point, direction ]
     else (
-      let new_visited = Set.add visited cache_key in
+      let new_visited = Set.add visited (point, direction) in
       let obstacle = obstacle_at point in
       let result =
         match obstacle, direction with
@@ -183,13 +175,13 @@ let solve board point direction cache =
             new_visited
             cache
       in
-      let result_set = Set.add result cache_key in
+      let result_set = Set.add result (point, direction) in
       cache_put cache point direction result_set;
       result_set)
   in
-  visit point direction (make_visited_set ()) cache
-  |> visited_set_to_points
-  |> Set.count ~f:(fun _ -> true)
+  let visited_set = visit point direction (make_visited_set ()) cache |> Set.to_list in
+  let points : point list = visited_set |> List.map ~f:fst in
+  points |> Point_set.of_list |> Set.count ~f:(fun _ -> true)
 ;;
 
 let solve_1 input =
