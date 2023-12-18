@@ -14,7 +14,7 @@ type direction =
   | Down
   | Left
   | Right
-[@@deriving eq, show, compare, sexp]
+[@@deriving eq, compare, sexp, hash]
 
 let step_towards (row, col) direction =
   match direction with
@@ -30,144 +30,118 @@ let is_valid_point city (row, col) =
   row >= 0 && row < max_row && col >= 0 && col < max_col
 ;;
 
-let possible_directions city current_direction point steps =
-  let potential_steps =
-    match current_direction with
-    | Up -> [ Up; Left; Right ]
-    | Down -> [ Down; Left; Right ]
-    | Left -> [ Left; Up; Down ]
-    | Right -> [ Right; Up; Down ]
-  in
-  potential_steps
-  |> List.filter ~f:(fun direction ->
-    if equal_direction direction current_direction && steps > 2 then false else true)
-  |> List.map ~f:(fun direction ->
-    let next_steps =
-      if equal_direction direction current_direction then steps + 1 else 1
-    in
-    step_towards point direction, direction, next_steps)
-  |> List.filter ~f:(fun (point, _, _) -> is_valid_point city point)
-;;
-
-let to_visited_key steps current_direction point =
-  string_of_int steps ^ "-" ^ show_direction current_direction ^ "-" ^ show_point point
-;;
-
-let point_from_visited_key key =
-  let parts = String.split ~on:'-' key in
-  List.nth_exn parts 2 |> read_point
-;;
-
 type key =
   { point : int * int
   ; direction : direction
   ; steps : int
   }
-[@@deriving compare, sexp, eq]
+[@@deriving compare, sexp, eq, hash]
 
 type entry =
   { distance : int
   ; key : key
   }
-[@@deriving compare, sexp, eq]
+[@@deriving compare, sexp, eq, hash]
+
+module Key = struct
+  type t = key [@@deriving compare, sexp, eq, hash]
+end
 
 module SetPoint = struct
-  type t = entry
+  type t = entry [@@deriving sexp, hash]
 
-  let sexp_of_t = sexp_of_entry
-  let compare a b = compare_entry a b
-  let t_of_sexp = entry_of_sexp
+  let compare a b =
+    let distance_compare = compare a.distance b.distance in
+    if distance_compare <> 0 then distance_compare else compare_entry a b
+  ;;
 end
 
 module PointSet = Set.Make (SetPoint)
 
-let neighbors city current_direction point steps : key list =
-  let potential_steps =
-    match current_direction with
-    | Up -> [ Up; Left; Right ]
-    | Down -> [ Down; Left; Right ]
-    | Left -> [ Left; Up; Down ]
-    | Right -> [ Right; Up; Down ]
-  in
-  potential_steps
-  |> List.filter ~f:(fun direction ->
-    if equal_direction direction current_direction && steps > 2 then false else true)
-  |> List.map ~f:(fun direction ->
-    let next_steps =
-      if equal_direction direction current_direction then steps + 1 else 1
-    in
-    let new_point = step_towards point direction in
-    if equal_point new_point point then failwith "same point";
-    { point = new_point; direction; steps = next_steps })
-  |> List.filter ~f:(fun n -> is_valid_point city n.point)
-;;
-
-let to_cache_key steps current_direction point =
-  string_of_int steps ^ "-" ^ show_direction current_direction ^ "-" ^ show_point point
-;;
+let find graph point = graph.(fst point).(snd point)
 
 (*
    Original dijkstra's implementation in ocaml heavily inspired by:
    https://github.com/nilehmann/ocaml-algorithms/blob/master/dijkstra.ml
 *)
-let dijkstras (graph : int array array) =
-  let distance = ref String.Map.empty in
-  let write_distance (key : key) value =
-    let cache_key = to_cache_key key.steps key.direction key.point in
-    distance := Map.set !distance ~key:cache_key ~data:value
+let dijkstras graph ~neighbors_of =
+  let result = ref Int.max_value in
+  let distance = Hashtbl.create (module Key) in
+  let write_distance key value = Hashtbl.set distance ~key ~data:value in
+  let read_distance key : int =
+    Hashtbl.find distance key |> Option.value ~default:Int.max_value
   in
-  let read_distance (key : key) : int =
-    let key = to_cache_key key.steps key.direction key.point in
-    let map = !distance in
-    let value = Map.find map key in
-    Option.value value ~default:Int.max_value_30_bits
+  let queue = ref PointSet.empty in
+  let enqueue entry = queue := Set.add !queue entry in
+  let dequeue () =
+    let min = Set.min_elt_exn !queue in
+    queue := Set.remove !queue min;
+    min
   in
-  let neighbors_of n = neighbors graph n.direction n.point n.steps in
-  let start = { distance = 0; key = { point = 0, 0; direction = Right; steps = 1 } } in
-  let queue =
-    ref
-      (PointSet.of_list
-         [ { start with key = { start.key with direction = Right } }
-         ; { start with key = { start.key with direction = Down } }
-         ])
+  let starting_points =
+    [ { distance = 0; key = { point = 0, 0; direction = Down; steps = 0 } }
+    ; { distance = 0; key = { point = 0, 0; direction = Right; steps = 0 } }
+    ]
   in
-  write_distance start.key 0;
-  while not (Set.is_empty !queue) do
-    let u = Set.min_elt_exn !queue in
-    queue := Set.remove !queue u;
-    List.iter (neighbors_of u.key) ~f:(fun (key : key) ->
-      if equal_point key.point u.key.point then failwith "same point";
-      let new_distance = read_distance u.key + graph.(fst key.point).(snd key.point) in
-      if new_distance < read_distance key
-      then (
-        queue := Set.add !queue { distance = new_distance; key };
-        write_distance key new_distance))
-  done;
+  List.iter starting_points ~f:(fun entry ->
+    enqueue entry;
+    write_distance entry.key 0);
   let end_point = Array.length graph - 1, Array.length graph.(0) - 1 in
-  Map.keys !distance
-  |> List.concat_map ~f:(fun key ->
-    let point = point_from_visited_key key in
-    if equal_point end_point point then [ Map.find_exn !distance key ] else [])
-  |> Util.list_min
+  while not (Set.is_empty !queue) do
+    let node = dequeue () in
+    List.filter (neighbors_of node.key) ~f:(fun n -> is_valid_point graph n.point)
+    |> List.iter ~f:(fun neighbor ->
+      let new_distance = read_distance node.key + find graph neighbor.point in
+      if new_distance < read_distance neighbor
+      then (
+        if equal_point end_point neighbor.point then result := min !result new_distance;
+        queue := Set.add !queue { distance = new_distance; key = neighbor };
+        write_distance neighbor new_distance))
+  done;
+  !result
+;;
+
+let turns direction =
+  match direction with
+  | Up -> [ Left; Right ]
+  | Down -> [ Left; Right ]
+  | Left -> [ Up; Down ]
+  | Right -> [ Up; Down ]
+;;
+
+let neighbors_part_1 from_direction point steps =
+  from_direction :: turns from_direction
+  |> List.filter ~f:(fun direction ->
+    if equal_direction direction from_direction && steps > 2 then false else true)
+  |> List.map ~f:(fun direction ->
+    let next_steps = if equal_direction direction from_direction then steps + 1 else 1 in
+    let new_point = step_towards point direction in
+    { point = new_point; direction; steps = next_steps })
+;;
+
+let neighbors_part_2 graph from_direction point steps =
+  let end_point = Array.length graph - 1, Array.length graph.(0) - 1 in
+  (match from_direction, steps with
+   | direction, s when s >= 4 && s < 10 -> direction :: turns direction
+   | direction, s when s <= 4 -> [ direction ]
+   | direction, s when s >= 10 -> turns direction
+   | _ -> failwith "invalid steps")
+  |> List.map ~f:(fun direction ->
+    let next_steps = if equal_direction direction from_direction then steps + 1 else 1 in
+    let new_point = step_towards point direction in
+    { point = new_point; direction; steps = next_steps })
+  |> List.filter ~f:(fun n ->
+    if equal_point n.point end_point then n.steps >= 4 else true)
 ;;
 
 let solve_1 input =
-  let input2 =
-    [ "2413432311323"
-    ; "3215453535623"
-    ; "3255245654254"
-    ; "3446585845452"
-    ; "4546657867536"
-    ; "1438598798454"
-    ; "4457876987766"
-    ; "3637877979653"
-    ; "4654967986887"
-    ; "4564679986453"
-    ; "1224686865563"
-    ; "2546548887735"
-    ; "4322674655533"
-    ]
-  in
-  let city = parse input in
-  dijkstras city
+  let graph = parse input in
+  let neighbors_of n = neighbors_part_1 n.direction n.point n.steps in
+  dijkstras graph ~neighbors_of
+;;
+
+let solve_2 input =
+  let graph = parse input in
+  let neighbors_of n = neighbors_part_2 graph n.direction n.point n.steps in
+  dijkstras graph ~neighbors_of
 ;;

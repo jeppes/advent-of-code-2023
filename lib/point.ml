@@ -1,3 +1,4 @@
+open Core
 open Sexplib.Std
 open Ppx_compare_lib.Builtin
 
@@ -22,3 +23,9 @@ let neighbors_of_point point =
   ; row + 1, column + 1
   ]
 ;;
+
+module Point = struct
+  type t = point [@@deriving compare, eq, sexp]
+end
+
+module Point_set = Set.Make (Point)
