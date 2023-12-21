@@ -37,3 +37,5 @@
 [Day 18](lib/day_18.ml) ⭐⭐
 
 [Day 19](lib/day_19.ml) ⭐⭐
+
+[Day 20](lib/day_20.ml) ⭐⭐
