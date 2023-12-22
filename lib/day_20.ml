@@ -130,7 +130,7 @@ let get_gate_exn gates name = Hashtbl.find_exn gates name
 let get_gate gates name = Hashtbl.find gates name
 let write_gate gates name gate = Hashtbl.set gates ~key:name ~data:gate
 
-let press_button stopping_points start_gate_names gates pulses =
+let press_button start_gate_names gates pulses =
   pulses.low <- pulses.low + 1;
   let start_gates = List.map start_gate_names ~f:(fun name -> get_gate_exn gates name) in
   let queue = Queue.create () in
@@ -199,8 +199,8 @@ let solve_1 input =
   List.iter (Map.to_alist gates_map) ~f:(fun (name, gate) ->
     Hashtbl.set gates ~key:name ~data:gate);
   let pulses = { high = 0; low = 0 } in
-  for i = 0 to 999 do
-    press_button i start_gate_names gates pulses
+  for _ = 0 to 999 do
+    press_button start_gate_names gates pulses
   done;
   let result = pulses.high * pulses.low in
   result
