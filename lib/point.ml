@@ -24,6 +24,19 @@ let neighbors_of_point point =
   ]
 ;;
 
+let neighbors_of_point_no_diagonals point =
+  let row = fst point in
+  let column = snd point in
+  [ (*  Row above *)
+    row - 1, column
+  ; (* Current row *)
+    row, column - 1
+  ; row, column + 1
+  ; (* Row below *)
+    row + 1, column
+  ]
+;;
+
 module Point = struct
   type t = point [@@deriving compare, eq, sexp]
 end
