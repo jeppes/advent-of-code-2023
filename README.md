@@ -45,3 +45,5 @@
 [Day 22](lib/day_22.ml) ⭐⭐
 
 [Day 23](lib/day_23.ml) ⭐⭐
+
+[Day 24](lib/day_24.ml) ⭐
