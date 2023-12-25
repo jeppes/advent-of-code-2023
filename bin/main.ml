@@ -236,7 +236,8 @@ let run_all () =
     ; day_19
     ; day_20
     ; day_21
-    ; day_22 (*  day 23 is a little too slow to run often *)
+    ; day_22
+    ; day_23
     ]
   in
   List.iter days ~f:(fun day ->
@@ -244,4 +245,4 @@ let run_all () =
     print_endline "")
 ;;
 
-let () = day_23 ()
+let () = run_all ()

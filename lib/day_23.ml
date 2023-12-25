@@ -26,30 +26,17 @@ module Entry = struct
   ;;
 end
 
-type graph = node array array
+type neighbor =
+  { distance : int
+  ; point : point
+  }
+
+type graph =
+  { matrix : node array array
+  ; neighbors_map : (point, neighbor list) Hashtbl.t
+  }
 
 module Entry_Set = Set.Make (Entry)
-
-let parse input =
-  let parse_char char =
-    match char with
-    | '.' -> Empty
-    | '#' -> Wall
-    | '>' -> Hill_Right
-    | '<' -> Hill_Left
-    | 'v' -> Hill_Down
-    | '^' -> Hill_Up
-    | _ -> failwith "Invalid char"
-  in
-  let row_count = List.length input in
-  let col_count = String.length (List.hd_exn input) in
-  let matrix = Array.make_matrix ~dimx:row_count ~dimy:col_count Empty in
-  List.iteri input ~f:(fun row_index row ->
-    String.iteri row ~f:(fun col_index char ->
-      if row_index = 1 && col_index = 1 then print_endline (Char.to_string char);
-      matrix.(row_index).(col_index) <- parse_char char));
-  matrix
-;;
 
 let find graph point = graph.(fst point).(snd point)
 
@@ -72,53 +59,93 @@ let find_neighbors graph point =
     && not (find graph (row, col) |> equal_node Wall))
 ;;
 
-let longest_path graph =
-  let result = ref 0 in
+let parse input =
+  let parse_char char =
+    match char with
+    | '.' -> Empty
+    | '#' -> Wall
+    | '>' -> Hill_Right
+    | '<' -> Hill_Left
+    | 'v' -> Hill_Down
+    | '^' -> Hill_Up
+    | _ -> failwith "Invalid char"
+  in
+  let row_count = List.length input in
+  let col_count = String.length (List.hd_exn input) in
+  let matrix = Array.make_matrix ~dimx:row_count ~dimy:col_count Empty in
+  let neighbors_map = Hashtbl.create (module Point) in
+  for i = 0 to row_count - 1 do
+    for j = 0 to col_count - 1 do
+      matrix.(i).(j) <- parse_char (String.get (List.nth_exn input i) j)
+    done
+  done;
+  for i = 0 to row_count - 1 do
+    for j = 0 to col_count - 1 do
+      let node = matrix.(i).(j) in
+      if not (equal_node Wall node)
+      then (
+        let neighbors =
+          find_neighbors matrix (i, j)
+          |> List.map ~f:(fun point -> { point; distance = 1 })
+        in
+        Hashtbl.set neighbors_map ~key:(i, j) ~data:neighbors)
+    done
+  done;
+  let has_irrelevant_nodes () =
+    List.filter (Hashtbl.keys neighbors_map) ~f:(fun point ->
+      let neighbors = Hashtbl.find_exn neighbors_map point in
+      List.length neighbors = 2)
+    |> List.is_empty
+    |> not
+  in
+  while has_irrelevant_nodes () do
+    List.iter (Hashtbl.keys neighbors_map) ~f:(fun key ->
+      let neighbors = Hashtbl.find_exn neighbors_map key in
+      match neighbors with
+      | [ p1; p2 ] ->
+        let old_p1 = Hashtbl.find_exn neighbors_map p1.point in
+        let new_p1 = old_p1 |> List.filter ~f:(fun p -> not (equal_point p.point key)) in
+        let new_p2 =
+          Hashtbl.find_exn neighbors_map p2.point
+          |> List.filter ~f:(fun p -> not (equal_point p.point key))
+        in
+        Hashtbl.set
+          neighbors_map
+          ~key:p1.point
+          ~data:({ p2 with distance = p1.distance + p2.distance } :: new_p1);
+        Hashtbl.set
+          neighbors_map
+          ~key:p2.point
+          ~data:({ p1 with distance = p2.distance + p1.distance } :: new_p2);
+        Hashtbl.remove neighbors_map key
+      | _ -> ())
+  done;
+  { matrix; neighbors_map }
+;;
+
+let longest_path (graph : graph) =
   let starting_index, _ =
-    graph.(0) |> Array.findi_exn ~f:(fun _ node -> equal_node node Empty)
+    graph.matrix.(0) |> Array.findi_exn ~f:(fun _ node -> equal_node node Empty)
   in
   let ending_index, _ =
-    graph.(Array.length graph - 1)
+    graph.matrix.(Array.length graph.matrix - 1)
     |> Array.findi_exn ~f:(fun _ node -> equal_node node Empty)
   in
   let start_point = 0, starting_index in
-  let end_point = Array.length graph - 1, ending_index in
+  let end_point = Array.length graph.matrix - 1, ending_index in
   let rec longest_path point visited count =
     if equal_point point end_point
-    then (
-      let previous_result = !result in
-      result := max !result count;
-      if previous_result <> !result
-      then print_endline (show_point point ^ " " ^ Int.to_string !result);
-      !result)
+    then count
     else (
       let new_visited = Set.add visited point in
-      let local_set = Hash_set.create (module Point) in
-      Hash_set.add local_set point;
       let neighbors =
-        ref
-          (find_neighbors graph point
-           |> List.filter ~f:(fun point -> not (Hash_set.mem local_set point))
-           |> List.filter ~f:(fun point -> not (Set.mem new_visited point)))
+        Hashtbl.find_exn graph.neighbors_map point
+        |> List.filter ~f:(fun n -> not (Set.mem visited n.point))
       in
-      let new_count = ref count in
-      while
-        List.length !neighbors = 1
-        && not (List.mem !neighbors end_point ~equal:equal_point)
-      do
-        new_count := !new_count + 1;
-        let neighbor = List.hd_exn !neighbors in
-        Hash_set.add local_set neighbor;
-        neighbors
-        := find_neighbors graph neighbor
-           |> List.filter ~f:(fun point -> not (Hash_set.mem local_set point))
-           |> List.filter ~f:(fun point -> not (Set.mem new_visited point))
-      done;
-      let new_visited =
-        Set.union new_visited (Hash_set.to_list local_set |> Point_set.of_list)
-      in
-      List.fold !neighbors ~init:0 ~f:(fun acc new_point ->
-        let new_acc = longest_path new_point new_visited (!new_count + 1) in
+      List.fold neighbors ~init:0 ~f:(fun acc neighbor ->
+        let new_acc =
+          longest_path neighbor.point new_visited (count + neighbor.distance)
+        in
         max acc new_acc))
   in
   longest_path start_point Point_set.empty 0
@@ -129,7 +156,6 @@ let solve_1 input =
   longest_path graph
 ;;
 
-(* Warning: extremely slow *)
 let solve_2 input =
   let input =
     input
@@ -140,7 +166,5 @@ let solve_2 input =
         | _ -> '.'))
   in
   let graph = parse input in
-  let result = longest_path graph in
-  print_endline "done";
-  result
+  longest_path graph
 ;;
