@@ -2,7 +2,7 @@ open Core
 open Sexplib.Std
 open Ppx_compare_lib.Builtin
 
-type point = int * int [@@deriving compare, eq, sexp]
+type point = int * int [@@deriving compare, eq, sexp, hash]
 
 let show_point (x, y) = Printf.sprintf "(%d,%d)" x y
 let read_point s = Scanf.sscanf s "(%d,%d)" (fun x y -> x, y)
@@ -38,7 +38,7 @@ let neighbors_of_point_no_diagonals point =
 ;;
 
 module Point = struct
-  type t = point [@@deriving compare, eq, sexp]
+  type t = point [@@deriving compare, eq, sexp, hash]
 end
 
-module Point_set = Set.Make (Point)
+module Point_set = Set.Make (Point) [@@deriving compare, eq, sexp, hash]

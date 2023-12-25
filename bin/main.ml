@@ -204,6 +204,15 @@ let day_22 _ =
   print_endline ("Part 2 " ^ Util.to_result ~result:day_22_part_2 ~expected:70609)
 ;;
 
+let day_23 _ =
+  print_endline "Day 23";
+  let day_23 = Util.read_file "inputs/day23.txt" in
+  let day_23_part_1 = Util.measure_ns Day_23.solve_1 day_23 in
+  print_endline ("Part 1 " ^ Util.to_result ~result:day_23_part_1 ~expected:2414);
+  let day_23_part_2 = Util.measure_ns Day_23.solve_2 day_23 in
+  print_endline ("Part 2 " ^ Util.to_result ~result:day_23_part_2 ~expected:6598)
+;;
+
 let run_all () =
   let days =
     [ day_1
@@ -227,7 +236,7 @@ let run_all () =
     ; day_19
     ; day_20
     ; day_21
-    ; day_22
+    ; day_22 (*  day 23 is a little too slow to run often *)
     ]
   in
   List.iter days ~f:(fun day ->
@@ -235,4 +244,4 @@ let run_all () =
     print_endline "")
 ;;
 
-let () = run_all ()
+let () = day_23 ()
